@@ -9,17 +9,26 @@ import androidx.compose.ui.Modifier
 
 @Composable
 fun MainScreen(
-    onNotificationClick : () -> Unit
+    onNotificationClick : () -> Unit,
+    onObtenerLocalizacionClick : () -> Unit
 ) {
 
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
+
         Button(
-            onClick = onNotificationClick
+            onClick = { onNotificationClick() }
         ) {
             Text( text = "EnviarNotificacion")
         }
+
+        Button(
+            onClick = { onObtenerLocalizacionClick() }
+        ) {
+            Text( text = "Obtener Ulima Localizacion")
+        }
+
     }
 
 

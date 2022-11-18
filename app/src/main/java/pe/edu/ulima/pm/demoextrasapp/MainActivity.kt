@@ -1,27 +1,26 @@
 package pe.edu.ulima.pm.demoextrasapp
 
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Looper
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Surface
-import androidx.compose.material.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
+import com.google.android.gms.location.*
 import pe.edu.ulima.pm.demoextrasapp.presentation.MainScreen
-import pe.edu.ulima.pm.demoextrasapp.ui.theme.DemoExtrasAppTheme
 
 
 val CHANNEL_ID = "1"
@@ -35,11 +34,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        requestLocationPermission()
         createNotificationChannel()
 
         setContent {
             MainScreen(
-                onNotificationClick = sendNotification
+                onNotificationClick = sendNotification,
+                onObtenerLocalizacionClick = obtenerLocalizacion
             )
         }
     }
@@ -51,8 +52,9 @@ class MainActivity : ComponentActivity() {
             this,
             DestinoActivity::class.java
         ).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or //flags: define comportamientos del activity destino
-                    Intent.FLAG_ACTIVITY_CLEAR_TASK
+            flags =
+                Intent.FLAG_ACTIVITY_NEW_TASK or //flags: define comportamientos del activity destino
+                        Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
 
         val pendingIntent =
@@ -114,6 +116,109 @@ class MainActivity : ComponentActivity() {
 
             notificationManager.createNotificationChannel(channel!!)
         }
+
+    }
+
+    // Localización
+
+    private val requestPermissionsLauncher =
+        registerForActivityResult( // acá ya está predefinida la pantallita para pedir permisos
+            ActivityResultContracts.RequestPermission()
+        ) { seOtorgaronPermisos ->
+
+            if (seOtorgaronPermisos) {
+                Log.i("Location", "Se otorgaron los permisos")
+            } else {
+                Log.i("Location", "No se otorgaron los permisos")
+            }
+        }
+
+
+    // Ventana modal para pedir permisos al usuario, este elige si concede o no los permisos (al usar la App)
+    private fun requestLocationPermission() {
+
+        when {
+            // 1. El usuario ya dio los permisos antes (para todas las veces)
+            ContextCompat.checkSelfPermission( //checkear si el user ya dio permiso
+                this, android.Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED -> {
+                Log.i("Location", "El usuario ya dio permisos")
+            }
+
+
+            // 2. No dio los permisos y se necesitaban
+            ActivityCompat.shouldShowRequestPermissionRationale(
+                this,
+                android.Manifest.permission.ACCESS_FINE_LOCATION
+            ) -> {
+                finish()
+            }
+
+            // 3. Aun no le ha dado los permisos
+            else -> {
+                // Lanzar pantalla para pedir permisos
+                requestPermissionsLauncher.launch(
+                    android.Manifest.permission.ACCESS_FINE_LOCATION
+                )
+            }
+
+
+        }
+    }
+
+    // Obtener la última localización
+    @SuppressLint("MissingPermission") //para que no sea necesario volver a pedir los permisos
+    private val obtenerUltimaLocalizacion: () -> Unit = {
+
+        val fusedLocationClient =
+            // fusedLocationCliente es un objeto que conecta con google services para ubicar la localización
+            LocationServices.getFusedLocationProviderClient(this)
+
+        fusedLocationClient.getCurrentLocation(
+            Priority.PRIORITY_HIGH_ACCURACY,
+            null
+        )  //Acá android usa GPS para ubicar gracias al PRIORITY_HIGH_ACCURACY (es más exacto)
+            .addOnSuccessListener {
+                if (it != null) {
+                    Log.i("Location", "Latitud: ${it.latitude} Longitud: ${it.longitude}")
+                }
+            }
+
+//        fusedLocationClient.lastLocation.addOnSuccessListener {
+//            if (it != null) {
+//                Log.i("Location", "Latitud: ${it.latitude} Longitud: ${it.longitude}")
+//            }
+//        }
+    }
+
+    //Obtener los updates de Localizacion constantemente
+    @SuppressLint("MissingPermission")
+    private val obtenerLocalizacion: () -> Unit = {
+
+        val fusedLocationClient =
+            LocationServices.getFusedLocationProviderClient(this)
+
+        //Para añadir parámetros
+        //val locationRequest = LocationRequest.Builder(3000).build() // cada 3 seg (era otra manera)
+        val locationRequest = com.google.android.gms.location.LocationRequest().apply {
+            priority = Priority.PRIORITY_LOW_POWER
+            setInterval(3000)
+        }
+
+        fusedLocationClient.requestLocationUpdates(
+            locationRequest,
+            object : LocationCallback() { //LocationCallback() es una interface, por eso se implementan sus métodos
+                override fun onLocationResult(location: LocationResult) {
+                    super.onLocationResult(location)
+                    Log.i(
+                        "Location",
+                        "Lat: ${location.lastLocation!!.latitude} " +
+                                "Long: ${location.lastLocation!!.longitude}"
+                    )
+                }
+            },
+            Looper.getMainLooper() //un loop para los updates constantes
+        )
 
     }
 
