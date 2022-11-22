@@ -19,6 +19,10 @@ import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import com.google.android.gms.location.*
 import pe.edu.ulima.pm.demoextrasapp.presentation.MainScreen
 
@@ -29,7 +33,6 @@ class MainActivity : ComponentActivity() {
 
     private var channel: NotificationChannel? = null
     //private lateinit var channel : NotificationChannel //lateinit: indica que channel será inicializado en algún momento
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,10 +45,11 @@ class MainActivity : ComponentActivity() {
                 onNotificationClick = sendNotification,
                 onObtenerLocalizacionClick = obtenerLocalizacion
             )
+
         }
     }
 
-    //Creamos la notificación
+    // Creamos la notificación
     fun createNotification(): Notification {
 
         val intent = Intent(
@@ -54,7 +58,7 @@ class MainActivity : ComponentActivity() {
         ).apply {
             flags =
                 Intent.FLAG_ACTIVITY_NEW_TASK or //flags: define comportamientos del activity destino
-                        Intent.FLAG_ACTIVITY_CLEAR_TASK
+                Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
 
         val pendingIntent =
@@ -86,17 +90,15 @@ class MainActivity : ComponentActivity() {
         return notif
     }
 
-
-    //Ejecutar la notificación (en modo lambda para poder enviarlo como parámetro al MainScreen - Callback)
+    // Ejecutar la notificación (en modo lambda para poder enviarlo como parámetro al MainScreen - Callback)
     val sendNotification: () -> Unit = {
-        val notif = createNotification() //lamamos la fun para crear la notif
+        val notif = createNotification() //llamamos la fun para crear la notif
         val notiManager =
             NotificationManagerCompat.from(this) //notiManager es una referencia a NotificationManager
         notiManager.notify(1, notif) //en el androidmanifest se añade el permiso de notif
     }
 
-
-    //Creamos el canal de notificación
+    // Creamos y registramos el canal de notificación
     fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 
@@ -119,8 +121,11 @@ class MainActivity : ComponentActivity() {
 
     }
 
-    // Localización
 
+    /*** ***/
+
+
+    // Pantalla para pedir permisos
     private val requestPermissionsLauncher =
         registerForActivityResult( // acá ya está predefinida la pantallita para pedir permisos
             ActivityResultContracts.RequestPermission()
@@ -132,7 +137,6 @@ class MainActivity : ComponentActivity() {
                 Log.i("Location", "No se otorgaron los permisos")
             }
         }
-
 
     // Ventana modal para pedir permisos al usuario, este elige si concede o no los permisos (al usar la App)
     private fun requestLocationPermission() {
@@ -170,8 +174,8 @@ class MainActivity : ComponentActivity() {
     @SuppressLint("MissingPermission") //para que no sea necesario volver a pedir los permisos
     private val obtenerUltimaLocalizacion: () -> Unit = {
 
+        // fusedLocationCliente es un objeto que conecta con google services para ubicar la localización
         val fusedLocationClient =
-            // fusedLocationCliente es un objeto que conecta con google services para ubicar la localización
             LocationServices.getFusedLocationProviderClient(this)
 
         fusedLocationClient.getCurrentLocation(
@@ -191,7 +195,7 @@ class MainActivity : ComponentActivity() {
 //        }
     }
 
-    //Obtener los updates de Localizacion constantemente
+    // Obtener los updates de Localizacion constantemente
     @SuppressLint("MissingPermission")
     private val obtenerLocalizacion: () -> Unit = {
 
